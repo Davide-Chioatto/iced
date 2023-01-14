@@ -34,6 +34,7 @@ where
 {
     id: Option<Id>,
     height: Length,
+    width : Length,
     direction: ScrollDirection,
     content: Element<'a, Message, Renderer>,
     on_scroll: Option<Box<dyn Fn(RelativeOffset) -> Message + 'a>>,
@@ -50,6 +51,7 @@ where
         Scrollable {
             id: None,
             height: Length::Shrink,
+            width : Length::Shrink,
             direction: ScrollDirection::default(),
             content: content.into(),
             on_scroll: None,
@@ -66,6 +68,12 @@ where
     /// Sets the height of the [`Scrollable`].
     pub fn height(mut self, height: Length) -> Self {
         self.height = height;
+        self
+    }
+
+        /// Sets the width of the [`Scrollable`].
+    pub fn width(mut self, width: Length) -> Self {
+        self.width = width;
         self
     }
 
@@ -205,7 +213,7 @@ where
     }
 
     fn width(&self) -> Length {
-        self.content.as_widget().width()
+        self.width
     }
 
     fn height(&self) -> Length {
@@ -220,7 +228,7 @@ where
         layout(
             renderer,
             limits,
-            Widget::<Message, Renderer>::width(self),
+            self.width,
             self.height,
             &self.direction,
             |renderer, limits| {
@@ -429,7 +437,7 @@ pub fn layout<Renderer>(
                 (u32::MAX, limits.max().height as u32),
                 (
                     Size::new(limits.min().width, limits.min().height),
-                    Size::new(limits.max().width, f32::INFINITY),
+                    Size::new(f32::INFINITY, limits.max().width),
                 ),
             ),
             ScrollDirection::Vertical(_) => (
@@ -447,6 +455,7 @@ pub fn layout<Renderer>(
                 ),
             ),
         };
+    println!("lim: {:?}",limits);
     let limits = limits
         .max_height(max_height)
         .max_width(max_width)
@@ -1119,9 +1128,9 @@ impl Scrollbars {
                     (None, None)
                 }
             }
-            ScrollDirection::Horizontal(v) => {
+            ScrollDirection::Horizontal(h) => {
                 if content_bounds.width > bounds.height {
-                    (Some(v), None)
+                    (Some(h), None)
                 } else {
                     (None, None)
                 }
@@ -1205,9 +1214,9 @@ impl Scrollbars {
 
             // Need to adjust the width of the horizontal scrollbar if the vertical scrollbar
             // is present
-            let scrollbar_y_width = y_scrollbar.map_or(0.0, |_| {
-                show_scrollbar_y.map_or(
-                    0.0,| v | {
+            let scrollbar_y_width = show_scrollbar_y.map_or(0.0, |v| {
+                y_scrollbar.map_or(
+                    0.0,| _| {
                         (v.width.max(v.scroller_width) + v.margin) as f32
                     },
                 )
@@ -1258,7 +1267,6 @@ impl Scrollbars {
         } else {
             None
         };
-
         Self {
             y: y_scrollbar,
             x: x_scrollbar,
