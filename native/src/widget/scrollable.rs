@@ -34,7 +34,7 @@ where
 {
     id: Option<Id>,
     height: Length,
-    width : Length,
+    width: Length,
     direction: ScrollDirection,
     content: Element<'a, Message, Renderer>,
     on_scroll: Option<Box<dyn Fn(RelativeOffset) -> Message + 'a>>,
@@ -51,7 +51,7 @@ where
         Scrollable {
             id: None,
             height: Length::Shrink,
-            width : Length::Shrink,
+            width: Length::Shrink,
             direction: ScrollDirection::default(),
             content: content.into(),
             on_scroll: None,
@@ -71,7 +71,7 @@ where
         self
     }
 
-        /// Sets the width of the [`Scrollable`].
+    /// Sets the width of the [`Scrollable`].
     pub fn width(mut self, width: Length) -> Self {
         self.width = width;
         self
@@ -89,7 +89,7 @@ where
         self
     }
     /// /// Configures the [`Scrollable`] to be both vertical and horizontal and the properties of both scrollbars
-    pub fn both_scroll(
+    pub fn bidirectional_scroll(
         mut self,
         horizontal: Properties,
         vertical: Properties,
@@ -141,7 +141,10 @@ pub enum ScrollDirection {
 
 impl Default for ScrollDirection {
     fn default() -> Self {
-        Self::Vertical(Properties::default())
+        Self::Both {
+            v: Properties::default(),
+            h: Properties::default(),
+        }
     }
 }
 
@@ -431,13 +434,13 @@ pub fn layout<Renderer>(
     scroll_direction: &ScrollDirection,
     layout_content: impl FnOnce(&Renderer, &layout::Limits) -> layout::Node,
 ) -> layout::Node {
-    let ((max_height, max_width), (child_min_size, child_max_size)) =
+    let ((max_width,max_height ), (child_min_size, child_max_size)) =
         match scroll_direction {
             ScrollDirection::Horizontal(_) => (
                 (u32::MAX, limits.max().height as u32),
                 (
                     Size::new(limits.min().width, limits.min().height),
-                    Size::new(f32::INFINITY, limits.max().width),
+                    Size::new(f32::INFINITY, limits.max().height),
                 ),
             ),
             ScrollDirection::Vertical(_) => (
@@ -455,18 +458,20 @@ pub fn layout<Renderer>(
                 ),
             ),
         };
-    println!("lim: {:?}",limits);
     let limits = limits
         .max_height(max_height)
         .max_width(max_width)
         .width(width)
         .height(height);
-
+    //println!(
+    //    "lim: {:?} {:?} {} {} {:?} {:?}",
+    //    height, width, max_height, max_width, child_min_size, child_max_size
+    //);
     let child_limits = layout::Limits::new(child_min_size, child_max_size);
-
+    println!("{:?}", child_limits);
     let content = layout_content(renderer, &child_limits);
     let size = limits.resolve(content.size());
-
+    println!("{:?}", size);
     layout::Node::with_children(size, vec![content])
 }
 
@@ -1215,11 +1220,9 @@ impl Scrollbars {
             // Need to adjust the width of the horizontal scrollbar if the vertical scrollbar
             // is present
             let scrollbar_y_width = show_scrollbar_y.map_or(0.0, |v| {
-                y_scrollbar.map_or(
-                    0.0,| _| {
-                        (v.width.max(v.scroller_width) + v.margin) as f32
-                    },
-                )
+                y_scrollbar.map_or(0.0, |_| {
+                    (v.width.max(v.scroller_width) + v.margin) as f32
+                })
             });
 
             let total_scrollbar_height = width.max(scroller_width) + 2 * margin;
